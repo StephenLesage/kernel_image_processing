@@ -3,35 +3,32 @@ import png
 import multiprocessing
 from multiprocessing import Pool
 import numpy as np
+import os
 
-###########################MULTIPROCESSING (YES/NO)#################################
-# NO MULTIPROCESSING
-multiprocess=0
-# YES MULTIPROCESSING
-#multiprocess=1
+################################ INITIAL PARAMETERS ################################
+#input_image = 'squirrel.jpeg'
+#input_image = 'tiger.jpeg'
+#input_image = 'zebra.jpeg'
+#input_image = 'peacock.jpeg'
+input_image = 'lightning.jpeg'
 ####################################################################################
 
-##############################INITIAL PARAMETERS####################################
-# importing initial image
-#im = Image.open('initial_image_folder/squirrel.jpeg')
-#im = Image.open('initial_image_folder/tiger.jpeg')
-im = Image.open('initial_image_folder/zebra.jpeg')
-#im = Image.open('initial_image_folder/peacock.jpeg')
-#im = Image.open('initial_image_folder/lightning.jpeg')
-
-# creating custom 3X3 kernel
-#kernel = [[2., 0., 0.],[0., 1., 4],[0., 1., 0.]]
-
-# creating custom 5X5 kernel
-#kernel = [[2., 0., 0.],[0., 1., 4],[0., 1., 0.]]
+########################## MULTIPROCESSING (YES/NO) ################################
+# NO
+multiprocess = 0
+# YES
+#multiprocess = 1
 ####################################################################################
 
-############################PRE-SET 3X3 KERNEL OPTIONS##############################
+########################### PRE-SET 3X3 KERNEL OPTIONS #############################
 # IDENTITY
 #kernel = [[0, 0, 0],[0, 1, 0],[0, 0, 0]]
 
+# CUSTOM 3X3 KERNEL
+#kernel = [[2., 0., 0.],[0., 1., 4],[0., 1., 0.]]
+
 # EDGE DETECTION KERNELS
-#kernel = [[1., 0., -1.],[0., 0., 0.],[-1., 0., 1].]
+#kernel = [[1., 0., -1.],[0., 0., 0.],[-1., 0., 1.]]
 #kernel = [[0., 1., 0.],[1., -4., 1.],[0., 1., 0.]]
 #kernel = [[-1., -1., -1.],[-1., 8., -1.],[-1., -1., -1.]]
 
@@ -46,9 +43,12 @@ im = Image.open('initial_image_folder/zebra.jpeg')
 #kernel = [[1/8., 1/4., 1/8.],[1/4., 1/2., 1/4.],[1/8., 1/4., 1/8.]]
 ####################################################################################
 
-############################PRE-SET 5X5 KERNEL OPTIONS##############################
+########################### PRE-SET 5X5 KERNEL OPTIONS #############################
 # IDENTITY
 #kernel = [[0., 0., 0., 0., 0.],[0., 0., 0., 0., 0.],[0., 0., 1., 0., 0.],[0., 0., 0., 0., 0.],[0., 0., 0., 0., 0.]]
+
+# CUSTOM 5X5 KERNEL
+#kernel = [[2., 0., 0.],[0., 1., 4],[0., 1., 0.]]
 
 # EDGE DETECTION
 kernel = [[0., 0., -1., 0., 0.],[0., -1., -2., -1., 0.],[-1., -2., 16., -2., -1.],[0., -1., -2., -1., 0.],[0., 0., -1., 0., 0.]]
@@ -75,19 +75,8 @@ kernel = [[0., 0., -1., 0., 0.],[0., -1., -2., -1., 0.],[-1., -2., 16., -2., -1.
 #kernel = [[2., 1., 0., -1., -2.],[2., 1., 0., -1., -2.],[2., 1., 0., -1., -2.],[2., 1., 0., -1., -2.],[2., 1., 0., -1., -2.]
 ####################################################################################
 
-# getting image dimansions and type
-width,height = im.size
-
-# split image into R G and B channels
-r,g,b, = im.split()
-
-# loading R G and B channels into numerical arrays... once in numerical arrays they can not be "merged" back into an RGB image in the traditional way because the original image has been compromised
-red = r.load()
-green = g.load()
-blue = b.load()
-
 # kernel loop for red image filter
-def make_dat_kerrrn(kernel_color_array):
+def three_by_three( kernel_color_array ):
 	print('kernel in filter...')
 	kernel_image = []
 	for i in range(height):
@@ -151,7 +140,7 @@ def make_dat_kerrrn(kernel_color_array):
 		kernel_image.append(temp_array)
 	return kernel_image
 
-def five_kerns_for_me_please(kernel_color_array):
+def five_by_five( kernel_color_array ):
 	print('kernel in filter...')
 	kernel_image = []
 	for i in range(height):
@@ -490,88 +479,95 @@ def five_kerns_for_me_please(kernel_color_array):
 					a0=(kernel_color_array[j-2,i-2]*kernel[0][0])
 					a1=(kernel_color_array[j-1,i-2]*kernel[0][1])
 					kernel_value=(a0+a1+a2+a3+a4+b0+b1+b2+b3+b4+c0+c1+c2+c3+c4)
-
 			temp_array.append(kernel_value)
 		kernel_image.append(temp_array)
 	return kernel_image
 
-if multiprocess==0:
-	if len(kernel) < 4:
-		red_kernel_image = make_dat_kerrrn(red)
-		blue_kernel_image = make_dat_kerrrn(blue)
-		green_kernel_image = make_dat_kerrrn(green)
+def correct_for_overflow_values( value ):
+	if value < 0:
+		return 0
+	elif value > 255:
+		return 255
+	else:
+		return value
 
-	if len(kernel) > 4:
-		red_kernel_image = five_kerns_for_me_please(red)
-		blue_kernel_image = five_kerns_for_me_please(blue)
-		green_kernel_image = five_kerns_for_me_please(green)
+# check if file output directory exists, if not make it
+if not os.path.exists( os.getcwd()+'/final_image_folder' ):
+    os.mkdir( os.getcwd()+'/final_image_folder' )
 
-if multiprocess==1:
-	# because numpy is for arrays and not "images" it was weird
-	# I had to reshape the images (height,width) because numoy reads column, row not row, column
+# setup file input and output directory
+initial_image_folder = 'initial_image_folder'
+final_image_folder = 'final_image_folder'
+
+# import initial image
+im = Image.open(initial_image_folder+'/'+input_image)
+
+# get image dimensions and type
+width,height = im.size
+
+# split image into R, G, and B channels
+r,g,b, = im.split()
+
+# loading R, G, and B channels into numerical arrays... once in numerical arrays they can not be "merged" back into an RGB image in the traditional way because the original image has been compromised
+red = r.load()
+green = g.load()
+blue = b.load()
+
+# no multiprocessing
+if multiprocess == 0:
+	if len( kernel ) < 4:
+		red_kernel_image = three_by_three(red)
+		blue_kernel_image = three_by_three(blue)
+		green_kernel_image = three_by_three(green)
+	if len( kernel ) > 4:
+		red_kernel_image = five_by_five(red)
+		blue_kernel_image = five_by_five(blue)
+		green_kernel_image = five_by_five(green)
+
+# yes multiprocessing
+if multiprocess == 1:
+	# first we reshape the images (height,width) because numpy reads column,row not row,column
+	# then, for some reason it was looking at the image from behind, so we have to flip the pixels across the diagonal
+	# but there is no function to do this, so first we rotate the matrix then we flip it about the diagonal
 	npred = np.array(r.getdata()).reshape(height, width)
-	# then I had to flip all of the pixel values to across the diagonal because for some reason
-	# it was like looking at the image from behind, instead of from the front. so to do this I 
-	# had to rotate the matrix then flip it because there is no one movement that flips it about
-	# the diagonal axis.
-	npred1=np.rot90(npred)
-	npred2=np.flipud(npred1)
-	# print "before rotate and flip"
-	# print npred[0][10]
-	# print npred[10][0]
-	# print red[0,10]
-	# print red[10,0]
-	# print "after rotate and flip"
-	# print npred2[0][10]
-	# print npred2[10][0]
-	# print red[0,10]
-	# print red[10,0]
-	# print(stop)
-
+	npred1 = np.rot90(npred)
+	npred2 = np.flipud(npred1)
 	npgreen = np.array(g.getdata()).reshape(height, width)
-	npgreen1=np.rot90(npgreen)
-	npgreen2=np.flipud(npgreen1)
+	npgreen1 = np.rot90(npgreen)
+	npgreen2 = np.flipud(npgreen1)
 	npblue = np.array(b.getdata()).reshape(height, width)
-	npblue1=np.rot90(npblue)
-	npblue2=np.flipud(npblue1)
+	npblue1 = np.rot90(npblue)
+	npblue2 = np.flipud(npblue1)
 	npim = [npred2,npgreen2,npblue2]
 
 	if len(kernel) < 4:
-		pixelaccess = multiprocessing.Pool().map(make_dat_kerrrn, npim)
-
+		pixelaccess = multiprocessing.Pool().map(three_by_three, npim)
 	if len(kernel) > 4:
-		pixelaccess = multiprocessing.Pool().map(five_kerns_for_me_please, npim)
+		pixelaccess = multiprocessing.Pool().map(five_by_five, npim)
 
 	red_kernel_image = pixelaccess[0]
 	green_kernel_image = pixelaccess[1]
 	blue_kernel_image = pixelaccess[2]
 
-
-
-def check_the_thing(num):
-	if num<0:
-		return 0
-	elif num>255:
-		return 255
-	else:
-		return num
-
-# looping through R G and B filters to create a final RGB array (final RGB image structured as [R,G,B, R,G,B, R,G,B, ...])
-rgb_image =[]
-x=0
-y=0
-z=0
+# looping through R, G, and B filters to create a final RGB array (final RGB image structured as [R,G,B, R,G,B, R,G,B, ...])
+rgb_image = []
+x = 0
+y = 0
+z = 0
 print('putting filters back together...')
-for i in range(height):
-	temp_array=[]
-	for j in range(width):
-		x = check_the_thing(int(red_kernel_image[i][j]))
-		y = check_the_thing(int(green_kernel_image[i][j]))
-		z = check_the_thing(int(blue_kernel_image[i][j]))
+for i in range( height ):
+	temp_array = []
+	for j in range( width ):
+		x = correct_for_overflow_values(int(red_kernel_image[i][j]))
+		y = correct_for_overflow_values(int(green_kernel_image[i][j]))
+		z = correct_for_overflow_values(int(blue_kernel_image[i][j]))
 		temp_array.append(x)
 		temp_array.append(y)
 		temp_array.append(z)
 	rgb_image.append(temp_array)
 
-# making the final RGB array into an RGB image and saving it
-png.from_array(rgb_image, 'RGB').save('final_image_folder/final_image.jpg')
+# transforming the final RGB array into an RGB image and saving it
+png.from_array(rgb_image, 'RGB').save(final_image_folder+'/'+input_image.split('.')[0]+'_final.jpg')
+
+
+
